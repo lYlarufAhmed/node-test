@@ -2,14 +2,14 @@ let User = require('./model')
 let bcrypt = require('bcrypt')
 const emailREGEX = /^([\w-\.]+@([\w-]+\.)+[\w-]{2,4})?$/
 
-let createNewUser = async (name, email, password) => {
+let createNewUser = async (name, email, password, token) => {
     let status = {}
     if (!emailREGEX.test(email)) status = {success: false, message: 'Invalid email!'}
     else {
         let hashed = await bcrypt.hash(password, 12)
         console.log('hashed', hashed)
         try {
-            let buffer = new User({name, email, password: hashed})
+            let buffer = new User({name, email, password: hashed, refreshToken:token})
             await buffer.save()
             buffer['password'] = ''
             status = {success: true, object: buffer}

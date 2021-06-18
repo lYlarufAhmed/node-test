@@ -1,6 +1,7 @@
 const {createNewUser} = require("../models/user/controller");
 const router = require('express').Router()
 const jwt = require('jsonwebtoken')
+const {logInUser} = require("../models/user/controller");
 
 
 router.route('/')
@@ -18,9 +19,12 @@ router.route('/')
         ) {
             let {name, email, password} = data
             try {
-                const status = await createNewUser(name, email, password)
+                let refresh_token = jwt.sign({email}, process.env.REFRESH_TOKEN_SECRET,
+                    {expiresIn: process.env.REFRESH_TOKEN_REFRESH_EXPIRES_IN})
+                const status = await createNewUser(name, email, password, refresh_token)
                 console.log('status', status)
-                res.sendStatus(200)
+                res.status(200)
+                res.send({success: true, refresh_token})
             } catch (e) {
                 console.log(e)
                 res.sendStatus(401)
@@ -32,20 +36,22 @@ router.route('/')
 router.route('/login')
     .post(async (req, res) => {
         let data = req.body
+        console.log('data', data)
+        let status
         if (data.email && data.password) {
             let {email, password} = data
-            let status
             try {
-                status = await logInUser()
-                let payload = {
-                    email
+                status = await logInUser(email, password)
+                if (status.success) {
+                    let payload = {
+                        userId: status.loggedInUser._id
+                    }
+                    let token = jwt.sign(payload, process.env.ACCESS_TOKEN_SECRET,
+                        {expiresIn: process.env.ACCESS_TOKEN_EXPIRES_IN})
+                    status.accessToken = token
+                    console.log(token)
                 }
-                let token = jwt.sign(payload, process.env.ACCESS_TOKEN_SECRET,
-                    {expiresIn: process.env.ACCESS_TOKEN_EXPIRES_IN})
-                status.accessToken = token
-                let refresh_token = jwt.sign(payload, process.env.REFRESH_TOKEN_SECRET,
-                    {expiresIn: process.env.REFRESH_TOKEN_REFRESH_EXPIRES_IN})
-                console.log(token, refresh_token)
+
             } catch (e) {
                 console.log(e)
             }
@@ -53,6 +59,7 @@ router.route('/login')
         } else {
             res.sendStatus(402)
         }
+        res.send(status)
 
     })
 module.exports = router
